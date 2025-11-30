@@ -1,9 +1,8 @@
 # PCA-EXP-4-MATRIX-ADDITION-WITH-UNIFIED-MEMORY AY 23-24
-<h3>AIM:</h3>
-<h3>ENTER YOUR NAME</h3>
-<h3>ENTER YOUR REGISTER NO</h3>
-<h3>EX. NO</h3>
-<h3>DATE</h3>
+
+<h3>Name: Meenu S</h3>
+<h3>Register Number: 212223230124</h3>
+
 <h1> <align=center> MATRIX ADDITION WITH UNIFIED MEMORY </h3>
   Refer to the program sumMatrixGPUManaged.cu. Would removing the memsets below affect performance? If you can, check performance with nvprof or nvvp.</h3>
 
@@ -39,10 +38,71 @@ Allocate Host Memory
 22.	Reset the device using cudaDeviceReset and return from the main function.
 
 ## PROGRAM:
-TYPE YOUR CODE HERE
+```c
+%%cu
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <string.h>
+
+__global__ void addMatrix(float *A, float *B, float *C, int N) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y;
+    int idx = iy * N + ix;
+    
+    if (ix < N && iy < N)
+        C[idx] = A[idx] + B[idx];
+}
+
+int main() {
+    int N = 1 << 10;  // 1024x1024
+    size_t bytes = N * N * sizeof(float);
+    
+    float *A, *B, *C1, *C2;
+    cudaMallocManaged(&A, bytes);
+    cudaMallocManaged(&B, bytes);
+    cudaMallocManaged(&C1, bytes);
+    cudaMallocManaged(&C2, bytes);
+    
+    for (int i = 0; i < N * N; i++) {
+        A[i] = 1.0f;
+        B[i] = 2.0f;
+    }
+    
+    // WITH memset - zeros the memory first
+    memset(C1, 0, bytes);
+    
+    // WITHOUT memset - uses uninitialized memory
+    // C2 is left uninitialized
+    
+    dim3 block(32, 32);
+    dim3 grid((N + 31) / 32, (N + 31) / 32);
+    
+    printf("=== WITH memset() ===\n");
+    addMatrix<<<grid, block>>>(A, B, C1, N);
+    cudaDeviceSynchronize();
+    printf("C1[0] = %.0f (expected 3)\n", C1[0]);
+    printf("C1[100] = %.0f (expected 3)\n\n", C1[100]);
+    
+    printf("=== WITHOUT memset() ===\n");
+    addMatrix<<<grid, block>>>(A, B, C2, N);
+    cudaDeviceSynchronize();
+    printf("C2[0] = %.0f (expected 3)\n", C2[0]);
+    printf("C2[100] = %.0f (expected 3)\n", C2[100]);
+    
+    printf("\nBoth work! memset() just ensures clean initial state.\n");
+    
+    cudaFree(A); cudaFree(B); cudaFree(C1); cudaFree(C2);
+    
+    return 0;
+}
+```
 
 ## OUTPUT:
-SHOW YOUR OUTPUT HERE
+#### with memset()
+<img width="1584" height="148" alt="image" src="https://github.com/user-attachments/assets/3abcfb13-3868-450f-adf6-55672ffd1c23" />
+
+#### without memset()
+<img width="1627" height="151" alt="image" src="https://github.com/user-attachments/assets/c685aa9f-c507-4113-85cd-2eb1b13701df" />
 
 ## RESULT:
 Thus the program has been executed by using unified memory. It is observed that removing memset function has given less/more_______________time.
